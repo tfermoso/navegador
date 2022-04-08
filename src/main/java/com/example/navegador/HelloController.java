@@ -1,20 +1,20 @@
 package com.example.navegador;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import org.apache.commons.io.FileUtils;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class HelloController{
     @FXML
@@ -23,6 +23,8 @@ public class HelloController{
     private TextField txtURL;
     @FXML
     private ImageView imgBandera;
+    private Pokemon pokemon;
+    private int pos;
 
 
     public void initialize() {
@@ -35,15 +37,34 @@ public class HelloController{
             url="https://"+url;
         }
         try {
-            String respuesta=peticionHttpGet(url);
+            //String respuesta=peticionHttpGet(url)
+            String url2="https://pokeapi.co/api/v2/pokemon/"+txtURL.getText()+"/";
+            String respuesta=peticionHttpGet(url2);
             Gson gson=new Gson();
+            JsonElement pk=JsonParser.parseString(respuesta);
 
-            //JsonArray arry = new JsonParser().parse(respuesta).getAsJsonArray();
-            JsonArray jsonArray = JsonParser.parseString(respuesta).getAsJsonArray();
-            String pais=jsonArray.get(0).getAsJsonObject().get("name").getAsJsonObject().get("nativeName").getAsJsonObject().get("spa").getAsJsonObject().get("official").getAsString();
-            String bandera=jsonArray.get(0).getAsJsonObject().get("flags").getAsJsonObject().get("png").getAsString();
-            imgBandera.setImage(new Image(bandera));
-            lblRespuesta.setText(pais);
+            String name=pk.getAsJsonObject().get("name").getAsString();
+            int id=((JsonObject) pk).get("id").getAsInt();
+           pokemon=Pokemon.crearPokemon(name,id);
+            String img1=((JsonObject) pk).get("sprites").getAsJsonObject().get("back_default").getAsString();
+            String img2=((JsonObject) pk).get("sprites").getAsJsonObject().get("back_shiny").getAsString();
+            String img3=((JsonObject) pk).get("sprites").getAsJsonObject().get("front_default").getAsString();
+            String img4=((JsonObject) pk).get("sprites").getAsJsonObject().get("front_shiny").getAsString();
+            pokemon.getImgs().add(img1);
+            pokemon.getImgs().add(img2);
+            pokemon.getImgs().add(img3);
+            pokemon.getImgs().add(img4);
+            Image img=new Image(pokemon.getImgs().get(2));
+
+
+            guardarImagen(pokemon.getImgs().get(2),pokemon.getName()+".png","C:\\Users\\usuario\\Desktop\\pokemon");
+
+
+
+            imgBandera.setImage(new Image(pokemon.getImgs().get(2)));
+            pos=2;
+            lblRespuesta.setText(pokemon.getName());
+
 
 
 
@@ -51,6 +72,14 @@ public class HelloController{
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+    }
+    @FXML
+    protected void siguienteImagen(){
+        pos++;
+        if(pos>3) pos=0;
+        imgBandera.setImage(new Image(pokemon.getImgs().get(pos)));
+
 
     }
 
@@ -74,5 +103,33 @@ public class HelloController{
         rd.close();
         // Regresar resultado, pero como cadena, no como StringBuilder
         return resultado.toString();
+    }
+
+    private void guardarImagen(String urlString, String filename,String savePath) throws IOException {
+        URL url = new URL(urlString);
+        // conexión abierta
+        URLConnection con = url.openConnection();
+        // Establece el tiempo de espera de la solicitud en 5 s
+        con.setConnectTimeout(5*1000);
+        // flujo de entrada
+        InputStream is = con.getInputStream();
+
+        // Búfer de datos de 1K
+        byte[] bs = new byte[1024];
+        // La longitud de los datos leídos
+        int len;
+        // flujo de archivo de salida
+        File sf=new File(savePath);
+        if(!sf.exists()){
+            sf.mkdirs();
+        }
+        OutputStream os = new FileOutputStream(sf.getPath()+"/"+filename);
+        // empieza a leer
+        while ((len = is.read(bs)) != -1) {
+            os.write(bs, 0, len);
+        }
+        // Finalizar, cerrar todos los enlaces
+        os.close();
+        is.close();
     }
 }
